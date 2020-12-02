@@ -8,8 +8,10 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"os/exec"
 	"os/user"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -60,7 +62,63 @@ func main() {
 		os.Exit(1)
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "add" {
+		if err := add(dataDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to edit new question: %+v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	ask(dataDir)
+}
+
+var questionFile = regexp.MustCompile("[0-9][0-9][0-9][0-9][0-9]-q.md")
+
+func add(dataDir string) error {
+	files, err := ioutil.ReadDir(dataDir)
+	if err != nil {
+		return fmt.Errorf("unable to list the files in %q: %+v", dataDir, err)
+	}
+	max := 0
+	for _, f := range files {
+		if questionFile.MatchString(f.Name()) {
+			fmt.Printf("Matched = %q\n", f.Name())
+			n, err := strconv.Atoi(f.Name()[0:5])
+			if err != nil {
+				return fmt.Errorf("unable to parse an integer from %q: %+v", f.Name(), err)
+			}
+			if n > max {
+				max = n
+			}
+		}
+	}
+	editor := "/home/jacobsimpson/bin/nvim"
+	newQuestionFile := path.Join(dataDir, fmt.Sprintf("%05d-q.md", max+1))
+	newAnswerFile := path.Join(dataDir, fmt.Sprintf("%05d-a.md", max+1))
+	cmd := exec.Command(editor, "-o", newQuestionFile, newAnswerFile)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("unable to start editor %q %q: %+v", editor, newQuestionFile, err)
+	}
+
+	records, err := loadIndex(path.Join(dataDir, "index.csv"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+
+	records = append(records, &record{
+		filename: fmt.Sprintf("%05d-q.md", max+1),
+	})
+
+	if err := saveIndex(path.Join(dataDir, "index.csv"), records); err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to save the index updates: %+v\n", err)
+		os.Exit(1)
+	}
+
+	return nil
 }
 
 func ask(dataDir string) {
