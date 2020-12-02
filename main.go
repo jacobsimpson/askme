@@ -60,6 +60,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	ask(dataDir)
+}
+
+func ask(dataDir string) {
 	records, err := loadIndex(path.Join(dataDir, "index.csv"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
