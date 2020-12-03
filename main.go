@@ -1,4 +1,3 @@
-//usr/bin/env go run "$0" "$@" ; exit "$?"
 package main
 
 import (
@@ -25,6 +24,10 @@ type record struct {
 	tags     []string
 	n, EF, I float64
 	next     time.Time
+}
+
+func (r *record) Name() string {
+	return r.filename[0:5]
 }
 
 func (r *record) String() string {
@@ -172,7 +175,7 @@ func ask(dataDir string) {
 		os.Exit(0)
 	}
 
-	fmt.Printf("%s Asking %q %s\n", strings.Repeat("*", 30), selected, strings.Repeat("*", 30))
+	fmt.Printf("%s Asking %s %s\n", strings.Repeat("*", 30), selected.Name(), strings.Repeat("*", 30))
 	questionFile := path.Join(dataDir, selected.filename)
 	text, err := ioutil.ReadFile(questionFile)
 	if err != nil {
