@@ -190,7 +190,13 @@ func ask(dataDir string) {
 		fmt.Print("Enter your rating (1-5, 1 is hard, 5 is easy): ")
 		s, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 		s = strings.TrimSpace(s)
-		//fmt.Print("rating = " + s)
+		if s == "e" {
+			err := edit(dataDir, selected)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to edit question %s: %+v", selected.Name(), err)
+			}
+			continue
+		}
 		if rating, err := strconv.Atoi(s); err == nil {
 			updateRating(selected, rating)
 			break
@@ -204,6 +210,18 @@ func ask(dataDir string) {
 	}
 }
 
+func edit(dataDir string, question *record) error {
+	editor := "/home/jacobsimpson/bin/nvim"
+	questionFile := path.Join(dataDir, fmt.Sprintf("%s-q.md", question.Name()))
+	answerFile := path.Join(dataDir, fmt.Sprintf("%s-a.md", question.Name()))
+	cmd := exec.Command(editor, "-o", questionFile, answerFile)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("unable to start editor %q %q: %+v", editor, questionFile, err)
+	}
+	return nil
+}
 func updateRating(r *record, q int) {
 	//algorithm SM-2 is
 	//    input:  user grade q
