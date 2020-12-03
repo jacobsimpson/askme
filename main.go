@@ -268,7 +268,6 @@ func updateRating(r *record, q int) {
 		r.I = 1
 	}
 	r.next = time.Now().Add(time.Duration(r.I) * time.Hour)
-	fmt.Printf("updated record = %s\n", r)
 }
 
 func readTags(dataDir string, records []*record) error {
