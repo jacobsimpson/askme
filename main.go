@@ -30,6 +30,10 @@ func (r *record) Name() string {
 	return r.filename[0:5]
 }
 
+func (r *record) AnswerFile() string {
+	return fmt.Sprintf("%s-a.md", r.Name())
+}
+
 func (r *record) String() string {
 	return fmt.Sprintf("{filename: %q, tags: %v, next: %s, supermemo: (%f, %f, %f)}", r.filename, r.tags, r.next, r.n, r.EF, r.I)
 }
@@ -86,7 +90,6 @@ func add(dataDir string) error {
 	max := 0
 	for _, f := range files {
 		if questionFile.MatchString(f.Name()) {
-			fmt.Printf("Matched = %q\n", f.Name())
 			n, err := strconv.Atoi(f.Name()[0:5])
 			if err != nil {
 				return fmt.Errorf("unable to parse an integer from %q: %+v", f.Name(), err)
@@ -175,16 +178,10 @@ func ask(dataDir string) {
 		os.Exit(0)
 	}
 
-	fmt.Printf("%s Asking %s %s\n", strings.Repeat("*", 30), selected.Name(), strings.Repeat("*", 30))
-	questionFile := path.Join(dataDir, selected.filename)
-	text, err := ioutil.ReadFile(questionFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to read %q\n", questionFile)
+	if err := showQuestion(dataDir, selected); err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to show the question %q: %+v\n", selected.Name(), err)
 		os.Exit(1)
 	}
-
-	result := md.Render(string(text), 100, 6)
-	fmt.Println(string(result))
 
 	for {
 		fmt.Print("Enter your rating (1-5, 1 is hard, 5 is easy): ")
@@ -194,6 +191,12 @@ func ask(dataDir string) {
 			err := edit(dataDir, selected)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Unable to edit question %s: %+v", selected.Name(), err)
+			}
+			continue
+		}
+		if s == "a" {
+			if err := showAnswer(dataDir, selected); err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to show answer %s: %+v", selected.Name(), err)
 			}
 			continue
 		}
@@ -208,6 +211,35 @@ func ask(dataDir string) {
 		fmt.Fprintf(os.Stderr, "Unable to save the index updates: %+v\n", err)
 		os.Exit(1)
 	}
+}
+
+func showQuestion(dataDir string, selected *record) error {
+	fmt.Printf("%s Asking %s %s\n", strings.Repeat("*", 30), selected.Name(), strings.Repeat("*", 30))
+	questionFile := path.Join(dataDir, selected.filename)
+	text, err := ioutil.ReadFile(questionFile)
+	if err != nil {
+		return fmt.Errorf("unable to read question %q: %+v", selected.Name(), err)
+	}
+
+	result := md.Render(string(text), 100, 6)
+	fmt.Println(string(result))
+	return nil
+}
+
+func showAnswer(dataDir string, selected *record) error {
+	fmt.Printf("%s\n", strings.Repeat("*", 80))
+	answerFile := path.Join(dataDir, selected.AnswerFile())
+	text, err := ioutil.ReadFile(answerFile)
+	if os.IsNotExist(err) {
+		fmt.Println("    No answer available.")
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("unable to read answer %q: %+v", answerFile, err)
+	}
+
+	result := md.Render(string(text), 100, 6)
+	fmt.Println(string(result))
+	return nil
 }
 
 func edit(dataDir string, question *record) error {
